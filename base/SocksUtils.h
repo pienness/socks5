@@ -85,13 +85,30 @@ inline muduo::net::InetAddress parseSocksIPv6Port(const void *addr)
     return muduo::net::InetAddress(sock_addr);
 }
 
-inline bool isLocalIP(const muduo::net::InetAddress &addr)
+inline bool isLocalIP(const muduo::net::InetAddress& addr)
 {
-    auto ip_prefix = addr.toIp().substr(0, addr.toIp().find('.'));
-    if(ip_prefix == "0" || ip_prefix == "127" || ip_prefix == "192") {
-        return true;
+    std::string ip = addr.toIp();
+
+    // Check if it's a local IP address when IPV4
+    if (ip.find('.') != std::string::npos) {
+        size_t pos = ip.find('.');
+        std::string ip_prefix = ip.substr(0, pos);
+
+        // Check if the IPv4 address belongs to common reserved address ranges:
+        // 1. If the IP address starts with "10", consider it as a local address.
+        // 2. If the IP address starts with "172" and the two digits after the first dot are between 16 and 31, consider it as a local address.
+        // 3. If the IP address starts with "192" and the three digits after the first dot are "168", consider it as a local address.
+        if (ip_prefix == "10" ||
+            (ip_prefix == "172" && ip.substr(pos + 1, 2) >= "16" && ip.substr(pos + 1, 2) <= "31") ||
+            (ip_prefix == "192" && ip.substr(pos + 1, 3) == "168")) {
+            return true;
+        }
     }
+
+    // TODO: Handling for IPV6 not implemented
+
     return false;
 }
+
 
 #endif  // SOCKS_UTILS_H
