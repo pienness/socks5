@@ -89,26 +89,29 @@ inline bool isLocalIP(const muduo::net::InetAddress& addr)
 {
     std::string ip = addr.toIp();
 
-    // Check if it's a local IP address when IPV4
+    // Check if it's an IPv4 address
     if (ip.find('.') != std::string::npos) {
         size_t pos = ip.find('.');
-        std::string ip_prefix = ip.substr(0, pos);
+        std::string ip_part1 = ip.substr(0, pos);
+        uint32_t ip_number = std::stoul(ip_part1);
 
-        // Check if the IPv4 address belongs to common reserved address ranges:
-        // 1. If the IP address starts with "10", consider it as a local address.
-        // 2. If the IP address starts with "172" and the two digits after the first dot are between 16 and 31, consider it as a local address.
-        // 3. If the IP address starts with "192" and the three digits after the first dot are "168", consider it as a local address.
-        if (ip_prefix == "10" ||
-            (ip_prefix == "172" && ip.substr(pos + 1, 2) >= "16" && ip.substr(pos + 1, 2) <= "31") ||
-            (ip_prefix == "192" && ip.substr(pos + 1, 3) == "168")) {
+        if (ip_number == 10 ||
+            (ip_number == 172 && std::stoi(ip.substr(pos + 1, 2)) >= 16 && std::stoi(ip.substr(pos + 1, 2)) <= 31) ||
+            (ip_number == 192 && std::stoi(ip.substr(pos + 1, 3)) == 168)) {
+            return true;
+        }
+    } 
+    // Check if it's an IPv6 address
+    else if (ip.find(':') != std::string::npos) {
+        // Check if the IPv6 address starts with "fe80" or "fc00"
+        if (ip.substr(0, 4) == "fe80" || ip.substr(0, 4) == "fc00") {
             return true;
         }
     }
 
-    // TODO: Handling for IPV6 not implemented
-
     return false;
 }
+
 
 
 #endif  // SOCKS_UTILS_H
