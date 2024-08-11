@@ -15,18 +15,22 @@
 #include "tunnel.h"
 
 class SocksServer : muduo::noncopyable {
-    constexpr static std::size_t connMaxNum_ = 163;
 public:
-    SocksServer(muduo::net::EventLoop *loop, const muduo::net::InetAddress &listenAddr) : 
+    SocksServer(muduo::net::EventLoop *loop, 
+                const muduo::net::InetAddress &listenAddr,
+                bool skipLocal = true,
+                std::size_t connMaxNum = 163,
+                std::size_t highMarkKB = 1024) : 
         server_(loop, listenAddr, "SocksServer"),
         loop_(loop), 
-        tunnels_(connMaxNum_),
-        status_(connMaxNum_),
-        cq_(connMaxNum_, connMaxNum_ * 2),
+        tunnels_(connMaxNum),
+        status_(connMaxNum),
+        cq_(connMaxNum, connMaxNum * 2),
         associationAddr_(),
-        skipLocal_(true),
+        skipLocal_(skipLocal),
         tunnelPeekCount_(0),
-        statusPeekCount_(0)
+        statusPeekCount_(0),
+        highMarkKB_(highMarkKB)
     {
         server_.setConnectionCallback([this] (const auto &conn) {
             onConnection(conn);
@@ -41,7 +45,6 @@ public:
         LOG_WARN << server_.name() << " UDP Association address on " << associationAddr_.toIpPort();
     }
     bool isSkipLocal() const { return skipLocal_; }
-    void skipLocal(bool skip=true) { skipLocal_ = skip; }
     void start() 
     { 
         LOG_WARN << server_.name() << " start on " << server_.ipPort();
@@ -75,6 +78,7 @@ private:
     bool skipLocal_;
     int tunnelPeekCount_;
     int statusPeekCount_;
+    std::size_t highMarkKB_;
 };
 
 

@@ -243,7 +243,7 @@ void SocksServer::handleWCMD(const TcpConnectionPtr &conn, muduo::net::Buffer *b
                     return;
                 }
                 LOG_INFO_CONN << "setup tunnel to resolved " << dst_addr.toIpPort();
-                TunnelPtr tunnel = std::make_shared<Tunnel>(loop_, dst_addr, conn);
+                TunnelPtr tunnel = std::make_shared<Tunnel>(loop_, dst_addr, conn, highMarkKB_);
                 tunnel->setup();
                 tunnel->connect();
                 // cq_.cleanMap();
