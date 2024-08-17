@@ -71,32 +71,40 @@ void SocksServer::onMessage(const muduo::net::TcpConnectionPtr &conn, muduo::net
     if (!conn->connected()) {
         return;
     }
-    auto key = getNumFromConnName(conn->name());
-    auto it = status_.find(key);
-    if(it == status_.end()) {
-        // corpse is speaking
-        LOG_FATAL_CONN << "missing status";
-    } else {
-        auto status = it->second;
-        switch(status) {
-            case WREQ:
-                handleWREQ(conn, buf, time);
-                if(buf->readableBytes() == 0 || status_.at(key) != WVLDT) {
+    bool incompleted = true;
+    while (incompleted) {
+        // handle next status only if status changed and buf not empty
+        auto key = getNumFromConnName(conn->name());
+        auto it = status_.find(key);
+        if(it == status_.end()) {
+            // corpse is speaking
+            LOG_FATAL_CONN << "missing status";
+        } else {
+            auto status = it->second;
+            switch(status) {
+                case WREQ:
+                    handleWREQ(conn, buf, time);
+                    if (!(it->second != WREQ && buf->readableBytes())) {
+                        incompleted = false;
+                    }
                     break;
-                }
-            case WVLDT:
-                handleWVLDT(conn, buf, time);
-                if(buf->readableBytes() == 0 || status_.at(key) != WCMD) {
+                case WVLDT:
+                    handleWVLDT(conn, buf, time);
+                    if (!(it->second != WVLDT && buf->readableBytes())) {
+                        incompleted = false;
+                    }
                     break;
-                }
-            case WCMD:
-                handleWCMD(conn, buf, time);
-                if(buf->readableBytes() == 0 || status_.at(key) != ESTABL) {
+                case WCMD:
+                    handleWCMD(conn, buf, time);
+                    if (!(it->second != WCMD && buf->readableBytes())) {
+                        incompleted = false;
+                    }
                     break;
-                }
-            case ESTABL:
-                handleESTABL(conn, buf, time);
-                break;
+                case ESTABL:
+                    handleESTABL(conn, buf, time);
+                    incompleted = false;
+                    break;
+            }
         }
     }
 }
@@ -145,13 +153,15 @@ void SocksServer::handleWREQ(const muduo::net::TcpConnectionPtr &conn, muduo::ne
         conn->send(response, sizeof(response));
         conn->forceClose();
         buf->retrieveAll();
-        return;
     } else {
         // send response for standard socks5
         char response[] { ver, method };
         conn->send(response, sizeof(response));
-        it->second = WVLDT;
-        return;
+        if (noAuth_) {
+            it->second = WCMD;
+        } else {
+            it->second = WVLDT;
+        }
     }
 }
 
@@ -161,11 +171,6 @@ void SocksServer::handleWVLDT(const TcpConnectionPtr &conn, muduo::net::Buffer *
     auto key = getNumFromConnName(conn->name());
     auto it = status_.find(key);
     assert(it != status_.end() && it->second == WVLDT);
-    if (noAuth_) {
-        LOG_INFO_CONN << "no auth";
-        it->second = WCMD;
-        return;
-    }
     if(buf->readableBytes() < 2) {
         return;
     }
