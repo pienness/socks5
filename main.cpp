@@ -62,8 +62,10 @@ R"({
         "enable": true,
         "port": 2333,
         "authentication": {
-            "usePassword": true,
-            "password": null
+            "noAuth": false,
+            "useDynamicPassword": true,
+            "username": "",
+            "password": ""
         },
         "udpAssociation": {
             "enable": true,
@@ -123,7 +125,11 @@ int main(int argc, char *argv[])
     if (socksConfig["enable"]) {
         InetAddress socksAddr(socksConfig["port"].get<uint16_t>());
         socksServer = std::make_unique<SocksServer>(&loop, 
-                                                    socksAddr, 
+                                                    socksAddr,
+                                                    socksConfig["authentication"]["noAuth"],
+                                                    socksConfig["authentication"]["useDynamicPassword"],
+                                                    socksConfig["authentication"]["username"],
+                                                    socksConfig["authentication"]["password"],
                                                     socksConfig["ignoreLocal"],
                                                     socksConfig["maxConnNum"],
                                                     socksConfig["highWaterMark"]);

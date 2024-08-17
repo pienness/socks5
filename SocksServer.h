@@ -18,6 +18,10 @@ class SocksServer : muduo::noncopyable {
 public:
     SocksServer(muduo::net::EventLoop *loop, 
                 const muduo::net::InetAddress &listenAddr,
+                bool noAuth = false,
+                bool useDynamicPassword = true,
+                const std::string &username = "",  // is this ref valid?
+                const std::string &password = "",  // is this ref valid?
                 bool skipLocal = true,
                 std::size_t connMaxNum = 163,
                 std::size_t highMarkKB = 1024) : 
@@ -26,10 +30,14 @@ public:
         tunnels_(connMaxNum),
         status_(connMaxNum),
         cq_(connMaxNum, connMaxNum * 2),
-        associationAddr_(),
-        skipLocal_(skipLocal),
         tunnelPeekCount_(0),
         statusPeekCount_(0),
+        associationAddr_(),
+        noAuth_(noAuth),
+        useDynamicPassword_(useDynamicPassword),
+        username_(username),
+        password_(password),
+        skipLocal_(skipLocal),
         highMarkKB_(highMarkKB)
     {
         server_.setConnectionCallback([this] (const auto &conn) {
@@ -71,14 +79,23 @@ private:
     };
     muduo::net::TcpServer server_;
     muduo::net::EventLoop *loop_;
+
     HashMap<int64_t, TunnelPtr> tunnels_;
     HashMap<int64_t, Status> status_;
     ConnectionQueue<int64_t> cq_;
-    muduo::net::InetAddress associationAddr_;
-    bool skipLocal_;
     int tunnelPeekCount_;
     int statusPeekCount_;
-    std::size_t highMarkKB_;
+
+    muduo::net::InetAddress associationAddr_;
+
+    const bool noAuth_;
+    const bool useDynamicPassword_;
+    const std::string username_;
+    const std::string password_;
+
+    const bool skipLocal_;
+
+    const std::size_t highMarkKB_;
 };
 
 

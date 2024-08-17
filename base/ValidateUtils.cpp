@@ -49,7 +49,7 @@ std::string genMD5(const std::string &raw)
     return rps;
 }
 
-bool authenticate(const std::string &user, const std::string &pswd)
+bool authenticateWithDynamicPassword(const std::string &user, const std::string &pswd)
 {
     auto vu = getUsername();
     auto vps = getGeneralPassword();
