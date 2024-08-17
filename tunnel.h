@@ -5,6 +5,7 @@
 #ifndef PROXY_TUNNEL_H
 #define PROXY_TUNNEL_H
 
+#include <cstddef>
 #include <muduo/base/Logging.h>
 #include <muduo/net/EventLoop.h>
 #include <muduo/net/InetAddress.h>
@@ -14,14 +15,16 @@
 
 // only in tunnel can get response from destination
 class Tunnel : public std::enable_shared_from_this<Tunnel>, muduo::noncopyable {
-static constexpr size_t kHighMark = 1024 * 1024;
+    static constexpr size_t K = 1024;
 public:
     Tunnel(muduo::net::EventLoop *loop,
            const muduo::net::InetAddress &destination,
-           const muduo::net::TcpConnectionPtr src_conn)
+           const muduo::net::TcpConnectionPtr src_conn,
+           size_t high_mark_kb = 1024)
     : loop_(loop), 
       client_(loop, destination, src_conn->name()),
-      serverConn_(src_conn)
+      serverConn_(src_conn),
+      highMarkKB_(high_mark_kb)
     {
         LOG_INFO << "Tunnel-" << this << " " << src_conn->peerAddress().toIpPort()
                  << " <-> " << destination.toIpPort();
@@ -56,7 +59,7 @@ public:
                 _1, 
                 _2
             ),
-            kHighMark
+            highMarkKB_ * K
         );
     }
 
@@ -97,7 +100,7 @@ private:
             conn->setTcpNoDelay(true);
             conn->setHighWaterMarkCallback(std::bind(&Tunnel::onHighWaterMarkWeak,
                                                          weak_from_this(), kClient, _1, _2), 
-                             kHighMark);
+                             highMarkKB_ * K);
             serverConn_->setContext(conn);  // Q2: record conn to match its client_ ? how about return conn to src 
             serverConn_->startRead();       // Q1: when destination connected then start read source requests
             clientConn_ = conn;             // destination conn
@@ -204,6 +207,7 @@ private:
     muduo::net::TcpClient client_;
     muduo::net::TcpConnectionPtr  serverConn_;  // source
     muduo::net::TcpConnectionPtr clientConn_;   // destination
+    size_t highMarkKB_;
 };
 typedef std::shared_ptr<Tunnel> TunnelPtr;
 

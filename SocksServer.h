@@ -15,18 +15,30 @@
 #include "tunnel.h"
 
 class SocksServer : muduo::noncopyable {
-    constexpr static std::size_t connMaxNum_ = 163;
 public:
-    SocksServer(muduo::net::EventLoop *loop, const muduo::net::InetAddress &listenAddr) : 
+    SocksServer(muduo::net::EventLoop *loop, 
+                const muduo::net::InetAddress &listenAddr,
+                bool noAuth = false,
+                bool useDynamicPassword = true,
+                const std::string &username = "",  // is this ref valid?
+                const std::string &password = "",  // is this ref valid?
+                bool skipLocal = true,
+                std::size_t connMaxNum = 163,
+                std::size_t highMarkKB = 1024) : 
         server_(loop, listenAddr, "SocksServer"),
         loop_(loop), 
-        tunnels_(connMaxNum_),
-        status_(connMaxNum_),
-        cq_(connMaxNum_, connMaxNum_ * 2),
-        associationAddr_(),
-        skipLocal_(true),
+        tunnels_(connMaxNum),
+        status_(connMaxNum),
+        cq_(connMaxNum, connMaxNum * 2),
         tunnelPeekCount_(0),
-        statusPeekCount_(0)
+        statusPeekCount_(0),
+        associationAddr_(),
+        noAuth_(noAuth),
+        useDynamicPassword_(useDynamicPassword),
+        username_(username),
+        password_(password),
+        skipLocal_(skipLocal),
+        highMarkKB_(highMarkKB)
     {
         server_.setConnectionCallback([this] (const auto &conn) {
             onConnection(conn);
@@ -41,7 +53,6 @@ public:
         LOG_WARN << server_.name() << " UDP Association address on " << associationAddr_.toIpPort();
     }
     bool isSkipLocal() const { return skipLocal_; }
-    void skipLocal(bool skip=true) { skipLocal_ = skip; }
     void start() 
     { 
         LOG_WARN << server_.name() << " start on " << server_.ipPort();
@@ -68,13 +79,23 @@ private:
     };
     muduo::net::TcpServer server_;
     muduo::net::EventLoop *loop_;
+
     HashMap<int64_t, TunnelPtr> tunnels_;
     HashMap<int64_t, Status> status_;
     ConnectionQueue<int64_t> cq_;
-    muduo::net::InetAddress associationAddr_;
-    bool skipLocal_;
     int tunnelPeekCount_;
     int statusPeekCount_;
+
+    muduo::net::InetAddress associationAddr_;
+
+    const bool noAuth_;
+    const bool useDynamicPassword_;
+    const std::string username_;
+    const std::string password_;
+
+    const bool skipLocal_;
+
+    const std::size_t highMarkKB_;
 };
 
 
