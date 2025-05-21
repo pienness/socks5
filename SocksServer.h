@@ -24,7 +24,8 @@ public:
                 const std::string &password = "",  // is this ref valid?
                 bool skipLocal = true,
                 std::size_t connMaxNum = 163,
-                std::size_t highMarkKB = 1024) : 
+                std::size_t highMarkKB = 1024,
+                double dnsTimeoutSeconds = 10.0) : 
         server_(loop, listenAddr, "SocksServer"),
         loop_(loop), 
         tunnels_(connMaxNum),
@@ -38,7 +39,8 @@ public:
         username_(username),
         password_(password),
         skipLocal_(skipLocal),
-        highMarkKB_(highMarkKB)
+        highMarkKB_(highMarkKB),
+        dnsTimeoutSeconds_(dnsTimeoutSeconds)
     {
         server_.setConnectionCallback([this] (const auto &conn) {
             onConnection(conn);
@@ -96,6 +98,7 @@ private:
     const bool skipLocal_;
 
     const std::size_t highMarkKB_;
+    const double dnsTimeoutSeconds_; // DNS解析超时时间（秒）
 };
 
 

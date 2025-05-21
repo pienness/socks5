@@ -4,6 +4,7 @@
 #include "muduo/base/Logging.h"
 #include "muduo/net/EventLoop.h"
 #include "muduo/net/InetAddress.h"
+#include "muduo/net/TimerId.h"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -18,7 +19,8 @@
 using SocksAddressParseCallback = std::function<void(const muduo::net::InetAddress &addr)>;
 using SocksAddressParseFailedCallback = std::function<void()>;
 void parseSocksToInetAddress(muduo::net::EventLoop *loop, const void *atyp, 
-    SocksAddressParseCallback succeeded_cb, SocksAddressParseFailedCallback failed_cb);
+    SocksAddressParseCallback succeeded_cb, SocksAddressParseFailedCallback failed_cb,
+    double timeout_seconds = 10.0);
 
 enum class SocksAddressType : char { 
     INCOMPLETED = '\x00', IPv4 = '\x01', DOMAIN_NAME = '\x03', IPv6 = '\x04', INVALID = '\xff'

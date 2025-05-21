@@ -70,11 +70,13 @@ R"({
         "udpAssociation": {
             "enable": true,
             "hostname": "localhost",
-            "port": 11451
+            "port": 11451,
+            "timeoutSeconds": 300
         },
         "highWaterMark": 1024,
         "maxConnNum": 163,
-        "ignoreLocal": true
+        "ignoreLocal": true,
+        "dnsTimeoutSeconds": 10.0
     }
 })";
 constexpr char configPath[] = "config.json";
@@ -119,11 +121,14 @@ int main(int argc, char *argv[])
     }
     
     std::unique_ptr<SocksServer> socksServer = nullptr;
-    std::unique_ptr<UdpAssociation> udpAssociation = nullptr;
+    std::shared_ptr<UdpAssociation> udpAssociation = nullptr;
     std::unique_ptr<cdns::Resolver> resolver = nullptr;
     json socksConfig = config["socksServer"];
     if (socksConfig["enable"]) {
         InetAddress socksAddr(socksConfig["port"].get<uint16_t>());
+        double dnsTimeout = socksConfig.contains("dnsTimeoutSeconds") ? 
+                            socksConfig["dnsTimeoutSeconds"].get<double>() : 10.0;
+                            
         socksServer = std::make_unique<SocksServer>(&loop, 
                                                     socksAddr,
                                                     socksConfig["authentication"]["noAuth"],
@@ -132,11 +137,22 @@ int main(int argc, char *argv[])
                                                     socksConfig["authentication"]["password"],
                                                     socksConfig["ignoreLocal"],
                                                     socksConfig["maxConnNum"],
-                                                    socksConfig["highWaterMark"]);
+                                                    socksConfig["highWaterMark"],
+                                                    dnsTimeout);
+                                                    
+        LOG_INFO << "SOCKS5代理服务器启动，DNS解析超时设置为 " << dnsTimeout << " 秒";
+        
         json assoConfig = socksConfig["udpAssociation"];
         if (assoConfig["enable"]) {
             InetAddress assoAddr(assoConfig["port"].get<uint16_t>());
-            udpAssociation = std::make_unique<UdpAssociation>(&loop, assoAddr);
+            
+            int udpTimeout = assoConfig.contains("timeoutSeconds") ? 
+                           assoConfig["timeoutSeconds"].get<int>() : 300;
+                           
+            udpAssociation = std::make_shared<UdpAssociation>(&loop, assoAddr, udpTimeout);
+            
+            LOG_INFO << "UDP关联服务启动，超时设置为 " << udpTimeout << " 秒";
+            
             resolver = std::make_unique<cdns::Resolver>(&loop);
             resolver->resolve(assoConfig["hostname"].get<std::string>(), [assoAddr, &socksServer](const InetAddress &association_addr) {
                 socksServer->setAssociationAddr({ association_addr.toIp(), assoAddr.port() });

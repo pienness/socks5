@@ -264,7 +264,8 @@ void SocksServer::handleWCMD(const TcpConnectionPtr &conn, muduo::net::Buffer *b
                     return;
             }
             auto wk = std::weak_ptr<TcpConnection>(conn);  // in case enlong lifetime
-            parseSocksToInetAddress(loop_, p,
+            
+            parseSocksToInetAddress(loop_, p, 
             [wk, buf, this, hostname, atyp, time](const InetAddress &dst_addr){
                 auto conn = wk.lock();
                 if (!conn || !conn->connected()) {
@@ -272,10 +273,6 @@ void SocksServer::handleWCMD(const TcpConnectionPtr &conn, muduo::net::Buffer *b
                     return;
                 }
                 auto key = getNumFromConnName(conn->name());
-                // if (!cq_.count(key)) {
-                //     LOG_WARN << "Name resolved as " << dst_addr.toIpPort() << " but disconnected already";
-                //     return;
-                // }
                 if (skipLocal_ && isLocalIP(dst_addr)) {
                     LOG_ERROR_CONN << "CONNECT: resolved to local address " << dst_addr.toIpPort();
                     shutdownSocksReq(conn, buf);
@@ -285,46 +282,9 @@ void SocksServer::handleWCMD(const TcpConnectionPtr &conn, muduo::net::Buffer *b
                 TunnelPtr tunnel = std::make_shared<Tunnel>(loop_, dst_addr, conn, highMarkKB_);
                 tunnel->setup();
                 tunnel->connect();
-                // cq_.cleanMap();
-                // cq_.cleanQueue();
-                // if (!(cq_.size() > tunnels_.size())) {
-                //     std::cout << "map: ";
-                //     for (auto &i : cq_.map_) {
-                //         std::cout << i.first << ", ";
-                //     }
-                //     std::cout << std::endl;
-                //     std::cout << "tunnels: ";
-                //     for (auto &i : tunnels_) {
-                //         std::cout << i.first << ", ";
-                //     }
-                //     std::cout << std::endl;
-                //     std::cout << "status: ";
-                //     for (auto &i : status_) {
-                //         std::cout << i.first << ", ";
-                //     }
-                //     std::cout << std::endl;
-                //     LOG_FATAL_CONN << "cq_.size() <= tunnels_.size()";
-                // }
+                
                 tunnels_[key] = tunnel; // is necessary
                 auto it = status_.find(key);
-                // if (it == status_.end()) {
-                //     std::cout << "map: ";
-                //     for (auto &i : cq_.map_) {
-                //         std::cout << i.first << ", ";
-                //     }
-                //     std::cout << std::endl;
-                //     std::cout << "tunnels: ";
-                //     for (auto &i : tunnels_) {
-                //         std::cout << i.first << ", ";
-                //     }
-                //     std::cout << std::endl;
-                //     std::cout << "status: ";
-                //     for (auto &i : status_) {
-                //         std::cout << i.first << ", ";
-                //     }
-                //     std::cout << std::endl;
-                //     LOG_FATAL_CONN << "missing status";
-                // }
                 if (it == status_.end()) {
                     LOG_FATAL_CONN << "missing status";
                 }
@@ -367,7 +327,8 @@ void SocksServer::handleWCMD(const TcpConnectionPtr &conn, muduo::net::Buffer *b
                 }
                 LOG_ERROR_CONN << hostname << " resolve failed";
                 shutdownSocksReq(conn, buf);
-            });
+            },
+            dnsTimeoutSeconds_); // 添加DNS解析超时参数
         }
             break;
         case '\x02':    // CMD: BIND
